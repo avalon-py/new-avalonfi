@@ -279,10 +279,17 @@ export default async function handler(req, res) {
         case "/hist":
           await handleHist(userId, chatId);
           break;
-        default:
+        case "/web": {
+          const token = generateWebToken(update.message.from);
+          await sendMessage(
+            chatId,
+            `🌐 Open dashboard:\nhttps://avalonfi.vercel.app/?token=${token}`
+          );
+          break;
+        }
+      default:
           await sendMessage(chatId, "Unknown command 🤔");
       }
-
       return res.status(200).end();
     }
 
