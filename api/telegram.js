@@ -201,7 +201,7 @@ export default async function handler(req, res) {
           const token = generateWebToken(update.message.from);
           await sendMessage(
             chatId,
-            `🌐 Open dashboard:\nhttps://new-avalonfi.vercel.app/?token=${token}`
+            `🌐 Open dashboard:\nhttps://avalonfi.vercel.app/?token=${token}`
           );
           break;
         }
