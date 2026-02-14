@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { db, FieldValue, admin } from "../lib/firebase.js";
+import { db, FieldValue, Timestamp } from "../lib/firebase.js";
 import { parseMessage } from "../lib/parsing.js";
 import { sendMessage } from "../lib/telegram.js";
 
