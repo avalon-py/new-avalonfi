@@ -1,7 +1,8 @@
 import crypto from "crypto";
 import { db, FieldValue, Timestamp } from "../lib/firebase.js";
 import { parseMessage } from "../lib/parsing.js";
-import { sendMessage } from "../lib/telegram.js";
+import { sendMessage, editMessage } from "../lib/telegram.js";
+
 
 /* ────────────────────────────────
    Date Helpers
@@ -172,15 +173,99 @@ export default async function handler(req, res) {
 
   const update = req.body;
 
-  if (!update.message || !update.message.text)
-    return res.status(200).end();
-
-  const text = update.message.text.trim();
-  const chatId = update.message.chat.id;
-  const userId = update.message.from.id;
-
   try {
-    // ✅ COMMANDS
+
+    /* ────────────────────────────────
+       ✅ HANDLE CALLBACK BUTTONS
+    ──────────────────────────────── */
+    if (update.callback_query) {
+      const callback = update.callback_query;
+      const data = callback.data;
+      const chatId = callback.message.chat.id;
+      const messageId = callback.message.message_id;
+      const userId = callback.from.id;
+
+      if (data.startsWith("confirm_delete_")) {
+        const txId = data.replace("confirm_delete_", "");
+
+        await editMessage(
+          chatId,
+          messageId,
+          "Are you sure you want to delete this transaction?",
+          {
+            inline_keyboard: [[
+              { text: "✅ Yes, delete", callback_data: `delete_${txId}` },
+              { text: "❌ Cancel", callback_data: `cancel_${txId}` }
+            ]]
+          }
+        );
+      }
+
+      if (data.startsWith("delete_")) {
+        const txId = data.replace("delete_", "");
+
+        const docRef = db.collection("transactions").doc(txId);
+        const doc = await docRef.get();
+
+        if (doc.exists && doc.data().userId === userId) {
+          await docRef.delete();
+        }
+
+        await editMessage(chatId, messageId, "Transaction deleted ❌");
+      }
+
+      if (data.startsWith("cancel_")) {
+        const txId = data.replace("cancel_", "");
+
+        const docRef = db.collection("transactions").doc(txId);
+        const doc = await docRef.get();
+
+        if (doc.exists) {
+          const tx = doc.data();
+
+          await editMessage(
+            chatId,
+            messageId,
+            `Saved ✅\n${tx.category}: ${tx.amount.toLocaleString()}`,
+            {
+              inline_keyboard: [[
+                {
+                  text: "🗑 Delete",
+                  callback_data: `confirm_delete_${txId}`
+                }
+              ]]
+            }
+          );
+        }
+      }
+
+      // stop spinner
+      await fetch(
+        `https://api.telegram.org/bot${process.env.BOT_TOKEN}/answerCallbackQuery`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            callback_query_id: callback.id
+          })
+        }
+      );
+
+      return res.status(200).end();
+    }
+
+    /* ────────────────────────────────
+       ✅ HANDLE NORMAL MESSAGES
+    ──────────────────────────────── */
+
+    if (!update.message || !update.message.text)
+      return res.status(200).end();
+
+    const text = update.message.text.trim();
+    const chatId = update.message.chat.id;
+    const userId = update.message.from.id;
+
+    // COMMANDS
     if (text.startsWith("/")) {
       const command = text.split(" ")[0];
 
@@ -188,24 +273,12 @@ export default async function handler(req, res) {
         case "/day":
           await handleDay(userId, chatId);
           break;
-
         case "/month":
           await handleMonth(userId, chatId);
           break;
-
         case "/hist":
           await handleHist(userId, chatId);
           break;
-
-        case "/web": {
-          const token = generateWebToken(update.message.from);
-          await sendMessage(
-            chatId,
-            `🌐 Open dashboard:\nhttps://avalonfi.vercel.app/?token=${token}`
-          );
-          break;
-        }
-
         default:
           await sendMessage(chatId, "Unknown command 🤔");
       }
@@ -213,7 +286,7 @@ export default async function handler(req, res) {
       return res.status(200).end();
     }
 
-    // ✅ TRANSACTIONS
+    // TRANSACTIONS
     const parsed = parseMessage(text);
 
     if (!parsed) {
@@ -224,18 +297,27 @@ export default async function handler(req, res) {
       return res.status(200).end();
     }
 
-    await db.collection("transactions")
-      .doc(String(update.update_id))
-      .set({
-        userId,
-        username: update.message.from.username || null,
-        ...parsed,
-        createdAt: FieldValue.serverTimestamp(),
-      });
+    // ✅ SAVE ONLY ONCE (FIXED)
+    const docRef = await db.collection("transactions").add({
+      userId,
+      username: update.message.from.username || null,
+      ...parsed,
+      createdAt: FieldValue.serverTimestamp(),
+    });
 
     await sendMessage(
       chatId,
-      `Saved ✅\n${parsed.category}: ${parsed.amount.toLocaleString()}`
+      `Saved ✅\n${parsed.category}: ${parsed.amount.toLocaleString()}`,
+      {
+        reply_markup: {
+          inline_keyboard: [[
+            {
+              text: "🗑 Delete",
+              callback_data: `confirm_delete_${docRef.id}`
+            }
+          ]]
+        }
+      }
     );
 
     return res.status(200).end();
