@@ -390,7 +390,7 @@ els.editForm.addEventListener("submit", async (e) => {
     const newDescription = els.editDescription.value.trim();
 
     const res = await fetch(
-        `https://avalonfi.up.railway.app/api/transactions/${editingId}?token=${appState.token}`,
+        `/api/transactions/${editingId}?token=${appState.token}`,
         {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
