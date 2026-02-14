@@ -1,0 +1,48 @@
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Smooth transitions */
+.transition-all {
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #f1f5f9; 
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1; 
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; 
+}
+
+/* Utility for hidden class management */
+.hidden {
+    display: none !important;
+}
+
+/* Markdown-like simple styling for AI output */
+.prose ul {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+.prose li {
+    margin-bottom: 0.25rem;
+}
+.prose p {
+    margin-bottom: 0.75rem;
+}
+.prose strong {
+    font-weight: 700;
+}
